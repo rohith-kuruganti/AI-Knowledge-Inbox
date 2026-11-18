@@ -1,17 +1,73 @@
 import { useEffect, useState } from 'react'
 
+const dateFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
+
 function App() {
-  const [apiStatus, setApiStatus] = useState('Checking the API…')
+  const [mode, setMode] = useState('note')
+  const [note, setNote] = useState('')
+  const [url, setUrl] = useState('')
+  const [items, setItems] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
 
   useEffect(() => {
-    fetch('/api/health')
-      .then((response) => {
-        if (!response.ok) throw new Error('The API returned an error.')
-        return response.json()
+    let isCurrent = true
+
+    fetch('/api/items')
+      .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Could not load saved items.')
+        return data.items
       })
-      .then((data) => setApiStatus(data.message))
-      .catch(() => setApiStatus('API unavailable. Start the server and try again.'))
+      .then((savedItems) => {
+        if (isCurrent) setItems(savedItems)
+      })
+      .catch((loadError) => {
+        if (isCurrent) setError(loadError.message)
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoading(false)
+      })
+
+    return () => {
+      isCurrent = false
+    }
   }, [])
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setError('')
+    setNotice('')
+    setIsSaving(true)
+
+    try {
+      const payload = mode === 'note'
+        ? { type: 'note', content: note }
+        : { type: 'url', url }
+      const response = await fetch('/api/ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await response.json()
+
+      if (!response.ok) throw new Error(data.error || 'Could not save this item.')
+
+      setItems((currentItems) => [data.item, ...currentItems])
+      if (mode === 'note') setNote('')
+      else setUrl('')
+      setNotice(mode === 'note' ? 'Note saved to your library.' : 'Page added to your library.')
+    } catch (saveError) {
+      setError(saveError.message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   return (
     <main className="page-shell">
@@ -23,22 +79,128 @@ function App() {
         <span className="stage-label">YOUR PRIVATE LIBRARY</span>
       </header>
 
-      <section className="welcome-card" aria-labelledby="welcome-title">
-        <p className="eyebrow">A LITTLE SPACE FOR BIG IDEAS</p>
-        <h1 id="welcome-title">Keep what<br />you learn.</h1>
-        <p className="welcome-copy">
-          Save useful notes and pages. Ask a question when you’re ready to
-          connect the dots.
-        </p>
-        <div className="coming-soon" aria-live="polite">
-          <span className="status-dot" />
-          <span>{apiStatus}</span>
+      <section className="workspace-intro">
+        <div>
+          <p className="eyebrow">A LITTLE SPACE FOR BIG IDEAS</p>
+          <h1>Keep what<br />you learn.</h1>
+          <p className="welcome-copy">
+            Save useful notes and pages. Ask a question when you’re ready to
+            connect the dots.
+          </p>
         </div>
+
+        <form className="composer-card" onSubmit={handleSubmit}>
+          <div className="composer-heading">
+            <div>
+              <p className="eyebrow">CAPTURE SOMETHING</p>
+              <h2>Add to your library</h2>
+            </div>
+            <span className="composer-mark" aria-hidden="true">+</span>
+          </div>
+
+          <div className="source-toggle" aria-label="Content type">
+            <button
+              type="button"
+              aria-pressed={mode === 'note'}
+              className={mode === 'note' ? 'selected' : ''}
+              onClick={() => { setMode('note'); setError(''); setNotice('') }}
+            >
+              Write a note
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === 'url'}
+              className={mode === 'url' ? 'selected' : ''}
+              onClick={() => { setMode('url'); setError(''); setNotice('') }}
+            >
+              Add a web page
+            </button>
+          </div>
+
+          {mode === 'note' ? (
+            <label className="field-label" htmlFor="note-content">
+              NOTE TEXT
+              <textarea
+                id="note-content"
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                placeholder="A thought, a useful detail, something you want to remember…"
+                maxLength={50_000}
+                rows={5}
+                required
+              />
+              <span className="character-count">{note.length.toLocaleString()} / 50,000</span>
+            </label>
+          ) : (
+            <label className="field-label" htmlFor="page-url">
+              PAGE ADDRESS
+              <input
+                id="page-url"
+                type="url"
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                placeholder="https://example.com/article"
+                required
+              />
+              <span className="field-hint">We’ll fetch and save its readable text.</span>
+            </label>
+          )}
+
+          {error && <p className="form-message error-message" role="alert">{error}</p>}
+          {notice && <p className="form-message success-message" role="status">{notice}</p>}
+
+          <button className="submit-button" type="submit" disabled={isSaving}>
+            {isSaving ? 'Saving…' : mode === 'note' ? 'Save note' : 'Import page'}
+            <span aria-hidden="true">↗</span>
+          </button>
+        </form>
+      </section>
+
+      <section className="library-section" aria-labelledby="library-title">
+        <div className="library-heading">
+          <div>
+            <p className="eyebrow">COLLECTED IN ONE PLACE</p>
+            <h2 id="library-title">Your library <span className="item-count">{items.length}</span></h2>
+          </div>
+          <span className="library-caption">NOTES &amp; PAGES</span>
+        </div>
+
+        {isLoading ? (
+          <div className="empty-state">Opening your library…</div>
+        ) : items.length === 0 ? (
+          <div className="empty-state">
+            <span className="empty-mark" aria-hidden="true">✳</span>
+            <p>Your library is waiting for its first note or page.</p>
+          </div>
+        ) : (
+          <ul className="item-grid">
+            {items.map((item) => (
+              <li className="item-card" key={item.id}>
+                <div className="item-meta">
+                  <span className={`item-type ${item.type}`}>
+                    {item.type === 'note' ? 'NOTE' : 'WEB PAGE'}
+                  </span>
+                  <time dateTime={item.createdAt}>
+                    {dateFormatter.format(new Date(item.createdAt))}
+                  </time>
+                </div>
+                <h3>{item.title}</h3>
+                {item.sourceUrl && (
+                  <a className="source-link" href={item.sourceUrl} target="_blank" rel="noreferrer">
+                    {new URL(item.sourceUrl).hostname}
+                    <span aria-hidden="true"> ↗</span>
+                  </a>
+                )}
+                <p className="item-excerpt">{item.content}</p>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <footer className="page-footer">
         <span>CAPTURE NOW. MAKE SENSE LATER.</span>
-        <span>01 / JUST GETTING STARTED</span>
+        <span>02 / BUILDING YOUR LIBRARY</span>
       </footer>
     </main>
   )

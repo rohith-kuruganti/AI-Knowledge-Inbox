@@ -3,4 +3,5 @@ client/dist/
 .env
 .env.*
 !.env.example
+server/data/
 .DS_Store

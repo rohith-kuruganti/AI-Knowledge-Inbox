@@ -4,7 +4,7 @@ A small web app for saving notes and web pages, then asking questions grounded i
 
 ## Requirements
 
-- Node.js 20 or newer
+- Node.js 22 or newer
 - npm
 
 ## Run locally
@@ -31,5 +31,5 @@ Open the local URL printed by Vite, usually http://localhost:5173.
 
 - React and Express run as separate npm workspaces, keeping frontend and backend responsibilities clear while sharing one install step.
 - Vite forwards `/api` requests to Express during local development, avoiding extra CORS setup for this single-origin app.
-- The starter uses an in-memory health endpoint only. Persistence, semantic search, and AI answers will be added in later milestones; a lightweight database is suitable for this single-user assessment.
+- SQLite stores notes and extracted page text locally, so saved items survive restarts without an external database service. The URL importer extracts text from HTML; pages that require client-side JavaScript may not import cleanly.
 - A hosted AI API keeps local setup small, but requires an internet connection and a locally configured API key. The key will remain on the server and out of Git.
