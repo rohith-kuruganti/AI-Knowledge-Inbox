@@ -12,6 +12,7 @@ mkdirSync(dirname(databasePath), { recursive: true })
 export const database = new Database(databasePath)
 
 database.pragma('journal_mode = WAL')
+database.pragma('foreign_keys = ON')
 database.exec(`
   CREATE TABLE IF NOT EXISTS items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,4 +22,18 @@ database.exec(`
     source_url TEXT,
     created_at TEXT NOT NULL
   )
+`)
+
+database.exec(`
+  CREATE TABLE IF NOT EXISTS chunks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    chunk_index INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    start_char INTEGER NOT NULL,
+    end_char INTEGER NOT NULL,
+    UNIQUE (item_id, chunk_index)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_chunks_item_id ON chunks(item_id)
 `)

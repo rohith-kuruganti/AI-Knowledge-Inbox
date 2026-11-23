@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { createItem, getItems } from '../storage/itemRepository.js'
+import { createItem, getItemChunks, getItems } from '../storage/itemRepository.js'
 import { fetchPageContent, UrlIngestionError } from '../services/urlContentService.js'
 
 const router = Router()
@@ -7,6 +7,20 @@ const MAX_NOTE_LENGTH = 50_000
 
 router.get('/items', (_request, response) => {
   response.json({ items: getItems() })
+})
+
+router.get('/items/:itemId/chunks', (request, response) => {
+  const itemId = Number(request.params.itemId)
+  if (!Number.isInteger(itemId) || itemId < 1) {
+    return response.status(400).json({ error: 'Item ID must be a positive integer.' })
+  }
+
+  const chunks = getItemChunks(itemId)
+  if (chunks === null) {
+    return response.status(404).json({ error: 'Saved item not found.' })
+  }
+
+  return response.json({ chunks })
 })
 
 router.post('/ingest', async (request, response) => {

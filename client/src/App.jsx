@@ -14,6 +14,10 @@ function App() {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [expandedItemId, setExpandedItemId] = useState(null)
+  const [chunksByItemId, setChunksByItemId] = useState({})
+  const [loadingChunksId, setLoadingChunksId] = useState(null)
+  const [chunkError, setChunkError] = useState('')
 
   useEffect(() => {
     let isCurrent = true
@@ -66,6 +70,30 @@ function App() {
       setError(saveError.message)
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  async function toggleChunks(itemId) {
+    if (expandedItemId === itemId) {
+      setExpandedItemId(null)
+      setChunkError('')
+      return
+    }
+
+    setExpandedItemId(itemId)
+    setChunkError('')
+    if (chunksByItemId[itemId]) return
+
+    setLoadingChunksId(itemId)
+    try {
+      const response = await fetch(`/api/items/${itemId}/chunks`)
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Could not load these chunks.')
+      setChunksByItemId((current) => ({ ...current, [itemId]: data.chunks }))
+    } catch (loadError) {
+      setChunkError(loadError.message)
+    } finally {
+      setLoadingChunksId(null)
     }
   }
 
@@ -192,6 +220,34 @@ function App() {
                   </a>
                 )}
                 <p className="item-excerpt">{item.content}</p>
+                <button
+                  type="button"
+                  className="chunks-button"
+                  aria-expanded={expandedItemId === item.id}
+                  onClick={() => toggleChunks(item.id)}
+                >
+                  {loadingChunksId === item.id
+                    ? 'Loading chunks…'
+                    : expandedItemId === item.id
+                      ? 'Hide chunks'
+                      : `Inspect ${item.chunkCount} chunks`}
+                  <span aria-hidden="true">{expandedItemId === item.id ? '−' : '+'}</span>
+                </button>
+                {expandedItemId === item.id && (
+                  <div className="chunks-panel">
+                    {chunkError ? (
+                      <p className="form-message error-message" role="alert">{chunkError}</p>
+                    ) : (chunksByItemId[item.id] || []).map((chunk) => (
+                      <div className="chunk-preview" key={chunk.chunkIndex}>
+                        <div className="chunk-label">
+                          <span>CHUNK {String(chunk.chunkIndex + 1).padStart(2, '0')}</span>
+                          <span>{chunk.startChar}–{chunk.endChar} chars</span>
+                        </div>
+                        <p>{chunk.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
