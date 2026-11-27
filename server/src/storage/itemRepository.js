@@ -19,7 +19,8 @@ const selectItems = database.prepare(`
     items.content,
     items.source_url AS sourceUrl,
     items.created_at AS createdAt,
-    COUNT(chunks.id) AS chunkCount
+    COUNT(chunks.id) AS chunkCount,
+    SUM(CASE WHEN chunks.embedding_status = 'ready' THEN 1 ELSE 0 END) AS embeddedChunkCount
   FROM items
   LEFT JOIN chunks ON chunks.item_id = items.id
   GROUP BY items.id
@@ -31,7 +32,10 @@ const selectChunks = database.prepare(`
     chunk_index AS chunkIndex,
     content,
     start_char AS startChar,
-    end_char AS endChar
+    end_char AS endChar,
+    embedding_status AS embeddingStatus,
+    embedding_model AS embeddingModel,
+    embedding_json AS embeddingJson
   FROM chunks
   WHERE item_id = ?
   ORDER BY chunk_index ASC
@@ -86,5 +90,48 @@ export function getItems() {
 
 export function getItemChunks(itemId) {
   if (!selectItemById.get(itemId)) return null
-  return selectChunks.all(itemId)
+  return selectChunks.all(itemId).map(({ embeddingJson, ...chunk }) => {
+    const embedding = embeddingJson ? JSON.parse(embeddingJson) : null
+    return {
+      ...chunk,
+      embeddingDimensions: embedding?.length ?? 0,
+      embeddingPreview: embedding?.slice(0, 5) ?? null,
+    }
+  })
+}
+
+export function getPendingChunks(itemId = null) {
+  const query = itemId === null
+    ? database.prepare(`
+        SELECT id, content
+        FROM chunks
+        WHERE embedding_status != 'ready'
+        ORDER BY item_id ASC, chunk_index ASC
+      `)
+    : database.prepare(`
+        SELECT id, content
+        FROM chunks
+        WHERE item_id = ? AND embedding_status != 'ready'
+        ORDER BY chunk_index ASC
+      `)
+
+  return itemId === null ? query.all() : query.all(itemId)
+}
+
+const updateEmbedding = database.prepare(`
+  UPDATE chunks
+  SET embedding_json = @embeddingJson,
+      embedding_model = @model,
+      embedding_status = 'ready'
+  WHERE id = @id
+`)
+
+const saveEmbeddingsTransaction = database.transaction((embeddings) => {
+  for (const { id, embedding, model } of embeddings) {
+    updateEmbedding.run({ id, embeddingJson: JSON.stringify(embedding), model })
+  }
+})
+
+export function saveChunkEmbeddings(embeddings) {
+  saveEmbeddingsTransaction(embeddings)
 }

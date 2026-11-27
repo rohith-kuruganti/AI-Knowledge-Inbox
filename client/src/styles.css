@@ -76,11 +76,17 @@ h1 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: clamp
 .submit-button { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: space-between; margin-top: 17px; padding: 0 14px; border: 0; border-radius: 2px; background: #34372b; color: #fffefa; font-size: 12px; font-weight: 600; }
 .submit-button:hover { background: #4a4d3a; }
 .submit-button:disabled { cursor: wait; opacity: 0.68; }
+.privacy-note { margin: 10px 0 0; color: #929186; font-size: 9px; line-height: 1.45; }
 
 .library-section { width: min(100%, 1080px); margin: 0 auto 66px; }
 .library-heading { padding-bottom: 15px; border-bottom: 1px solid #d8d5ca; }
+.library-actions { display: flex; align-items: center; gap: 12px; }
 .library-heading .eyebrow { margin-bottom: 8px; }
 .library-heading h2 { font-size: 29px; }
+.pending-caption { color: #77776d; font-size: 10px; }
+.embed-button { min-height: 35px; padding: 0 12px; border: 1px solid #cfcdbf; background: #fbfaf5; color: #515541; font-size: 11px; }
+.embed-button:hover { border-color: #a9ad8d; background: #f0f1e8; }
+.embed-button:disabled { cursor: wait; opacity: 0.65; }
 .item-count { display: inline-grid; min-width: 23px; height: 23px; place-items: center; margin-left: 5px; border-radius: 50%; background: #e4e8d2; color: #68714e; font-family: Inter, sans-serif; font-size: 11px; vertical-align: 4px; }
 
 .empty-state { display: flex; min-height: 122px; align-items: center; justify-content: center; gap: 12px; color: #858579; font-size: 13px; }
@@ -89,6 +95,7 @@ h1 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: clamp
 .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 14px; margin: 20px 0 0; padding: 0; list-style: none; }
 .item-card { min-width: 0; padding: 18px; border: 1px solid #dedbd1; background: rgba(250, 249, 245, 0.78); }
 .item-meta { gap: 12px; color: #8b8b80; font-size: 10px; }
+.embedding-count { margin: 13px 0 -8px; color: #8b8b80; font-size: 9px; }
 .item-type { color: #788354; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 9px; letter-spacing: 0.1em; }
 .item-type.url { color: #777763; }
 .item-card h3 { margin: 14px 0 6px; overflow-wrap: anywhere; font-family: Georgia, 'Times New Roman', serif; font-size: 19px; font-weight: 500; line-height: 1.25; }
@@ -101,6 +108,9 @@ h1 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: clamp
 .chunk-preview + .chunk-preview { margin-top: 7px; }
 .chunk-label { display: flex; justify-content: space-between; gap: 8px; color: #858675; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 8px; letter-spacing: 0.07em; }
 .chunk-preview p { margin: 7px 0 0; color: #606156; font-size: 10px; line-height: 1.55; }
+.vector-status { margin-top: 9px; color: #8b6b42; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 8px; letter-spacing: 0.04em; }
+.vector-status.ready { color: #64734c; }
+.vector-preview { display: block; overflow: hidden; margin-top: 5px; color: #787a69; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 
 .page-footer { margin-top: auto; color: #818176; font-size: 8px; }
 
@@ -110,10 +120,13 @@ h1 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: clamp
   .workspace-intro { grid-template-columns: 1fr; gap: 34px; margin: 54px auto 56px; }
   .composer-card { padding: 22px; }
   .library-section { margin-bottom: 46px; }
+  .library-heading { align-items: flex-end; }
 }
 
 @media (max-width: 420px) {
   .workspace-intro { margin-top: 42px; }
   .page-footer { gap: 15px; font-size: 7px; }
   .library-caption { font-size: 7px; }
+  .library-heading { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .library-actions { align-self: stretch; justify-content: space-between; }
 }

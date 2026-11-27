@@ -32,8 +32,24 @@ database.exec(`
     content TEXT NOT NULL,
     start_char INTEGER NOT NULL,
     end_char INTEGER NOT NULL,
+    embedding_json TEXT,
+    embedding_model TEXT,
+    embedding_status TEXT NOT NULL DEFAULT 'pending',
     UNIQUE (item_id, chunk_index)
   );
 
   CREATE INDEX IF NOT EXISTS idx_chunks_item_id ON chunks(item_id)
 `)
+
+const chunkColumns = new Set(database.pragma('table_info(chunks)').map((column) => column.name))
+const embeddingColumns = [
+  ['embedding_json', 'TEXT'],
+  ['embedding_model', 'TEXT'],
+  ['embedding_status', "TEXT NOT NULL DEFAULT 'pending'"],
+]
+
+for (const [columnName, columnType] of embeddingColumns) {
+  if (!chunkColumns.has(columnName)) {
+    database.exec(`ALTER TABLE chunks ADD COLUMN ${columnName} ${columnType}`)
+  }
+}

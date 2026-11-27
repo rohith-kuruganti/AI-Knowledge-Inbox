@@ -12,12 +12,17 @@ function App() {
   const [items, setItems] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [expandedItemId, setExpandedItemId] = useState(null)
   const [chunksByItemId, setChunksByItemId] = useState({})
   const [loadingChunksId, setLoadingChunksId] = useState(null)
   const [chunkError, setChunkError] = useState('')
+  const pendingEmbeddingCount = items.reduce(
+    (total, item) => total + Math.max(item.chunkCount - (item.embeddedChunkCount || 0), 0),
+    0,
+  )
 
   useEffect(() => {
     let isCurrent = true
@@ -65,11 +70,35 @@ function App() {
       setItems((currentItems) => [data.item, ...currentItems])
       if (mode === 'note') setNote('')
       else setUrl('')
-      setNotice(mode === 'note' ? 'Note saved to your library.' : 'Page added to your library.')
+      setNotice(data.embeddingWarning || (mode === 'note' ? 'Note saved to your library.' : 'Page added to your library.'))
     } catch (saveError) {
       setError(saveError.message)
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  async function handleGenerateEmbeddings() {
+    setError('')
+    setNotice('')
+    setIsGeneratingEmbeddings(true)
+
+    try {
+      const response = await fetch('/api/embeddings/generate', { method: 'POST' })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Could not generate embeddings.')
+
+      const itemsResponse = await fetch('/api/items')
+      const itemsData = await itemsResponse.json()
+      if (!itemsResponse.ok) throw new Error(itemsData.error || 'Could not refresh the library.')
+
+      setItems(itemsData.items)
+      setChunksByItemId({})
+      setNotice(`Generated embeddings for ${data.embeddedChunks} chunks with ${data.model}.`)
+    } catch (embeddingError) {
+      setError(embeddingError.message)
+    } finally {
+      setIsGeneratingEmbeddings(false)
     }
   }
 
@@ -181,6 +210,9 @@ function App() {
             {isSaving ? 'Saving…' : mode === 'note' ? 'Save note' : 'Import page'}
             <span aria-hidden="true">↗</span>
           </button>
+          <p className="privacy-note">
+            With an API key configured, saved chunks are sent to OpenAI to create embeddings.
+          </p>
         </form>
       </section>
 
@@ -190,7 +222,22 @@ function App() {
             <p className="eyebrow">COLLECTED IN ONE PLACE</p>
             <h2 id="library-title">Your library <span className="item-count">{items.length}</span></h2>
           </div>
-          <span className="library-caption">NOTES &amp; PAGES</span>
+          <div className="library-actions">
+            {pendingEmbeddingCount > 0 && (
+              <>
+                <span className="pending-caption">{pendingEmbeddingCount} chunks need embeddings</span>
+                <button
+                  className="embed-button"
+                  type="button"
+                  onClick={handleGenerateEmbeddings}
+                  disabled={isGeneratingEmbeddings}
+                >
+                  {isGeneratingEmbeddings ? 'Generating…' : 'Generate embeddings'}
+                </button>
+              </>
+            )}
+            {pendingEmbeddingCount === 0 && <span className="library-caption">NOTES &amp; PAGES</span>}
+          </div>
         </div>
 
         {isLoading ? (
@@ -212,6 +259,9 @@ function App() {
                     {dateFormatter.format(new Date(item.createdAt))}
                   </time>
                 </div>
+                <p className="embedding-count">
+                  {item.embeddedChunkCount || 0} / {item.chunkCount} chunk embeddings ready
+                </p>
                 <h3>{item.title}</h3>
                 {item.sourceUrl && (
                   <a className="source-link" href={item.sourceUrl} target="_blank" rel="noreferrer">
@@ -244,6 +294,16 @@ function App() {
                           <span>{chunk.startChar}–{chunk.endChar} chars</span>
                         </div>
                         <p>{chunk.content}</p>
+                        <div className={`vector-status ${chunk.embeddingStatus}`}>
+                          {chunk.embeddingStatus === 'ready'
+                            ? `${chunk.embeddingDimensions}D vector · ${chunk.embeddingModel}`
+                            : 'Embedding pending'}
+                        </div>
+                        {chunk.embeddingPreview && (
+                          <code className="vector-preview">
+                            [{chunk.embeddingPreview.map((value) => value.toFixed(4)).join(', ')}, …]
+                          </code>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -256,7 +316,7 @@ function App() {
 
       <footer className="page-footer">
         <span>CAPTURE NOW. MAKE SENSE LATER.</span>
-        <span>02 / BUILDING YOUR LIBRARY</span>
+        <span>03 / MAPPING MEANING</span>
       </footer>
     </main>
   )

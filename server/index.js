@@ -1,5 +1,11 @@
 import express from 'express'
+import dotenv from 'dotenv'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import itemsRouter from './src/routes/items.js'
+
+const serverDirectory = dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: resolve(serverDirectory, '.env') })
 
 const app = express()
 const port = process.env.PORT || 3001
